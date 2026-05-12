@@ -657,7 +657,139 @@ export default function Home() {
     </main>
   );
 }
+function WorkoutTable({
+  logs,
+  deleteLog,
+  showDelete = false,
+}: {
+  logs: WorkoutLog[];
+  deleteLog: (id: string) => void;
+  showDelete?: boolean;
+}) {
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [expandedWorkout, setExpandedWorkout] = useState<string | null>(null);
 
+  if (logs.length === 0) {
+    return <div style={styles.emptyCard}>No saved workouts yet.</div>;
+  }
+
+  const groupedByDate = logs.reduce<Record<string, WorkoutLog[]>>((acc, log) => {
+    if (!acc[log.workout_date]) acc[log.workout_date] = [];
+    acc[log.workout_date].push(log);
+    return acc;
+  }, {});
+
+  return (
+    <div style={styles.groupedList}>
+      {Object.entries(groupedByDate).map(([date, dateLogs]) => {
+        const dateOpen = expandedDate === date;
+
+        const groupedByExercise = dateLogs.reduce<Record<string, WorkoutLog[]>>(
+          (acc, log) => {
+            if (!acc[log.exercise]) acc[log.exercise] = [];
+            acc[log.exercise].push(log);
+            return acc;
+          },
+          {}
+        );
+
+        const exerciseCount = Object.keys(groupedByExercise).length;
+
+        return (
+          <div key={date} style={styles.dateGroup}>
+            <button
+              type="button"
+              style={dateOpen ? styles.dateRowOpen : styles.dateRow}
+              onClick={() => {
+                setExpandedDate(dateOpen ? null : date);
+                setExpandedWorkout(null);
+              }}
+            >
+              <div>
+                <div style={styles.dateTitle}>{prettyDate(date)}</div>
+                <div style={styles.dateSummary}>
+                  {exerciseCount} workouts • {dateLogs.length} saved sets
+                </div>
+              </div>
+
+              <span style={styles.expandIcon}>{dateOpen ? "▲" : "▼"}</span>
+            </button>
+
+            {dateOpen && (
+              <div style={styles.workoutGroupList}>
+                {Object.entries(groupedByExercise).map(([exercise, exerciseLogs]) => {
+                  const workoutKey = `${date}-${exercise}`;
+                  const workoutOpen = expandedWorkout === workoutKey;
+
+                  return (
+                    <div key={workoutKey} style={styles.workoutGroup}>
+                      <button
+                        type="button"
+                        style={workoutOpen ? styles.exerciseRowOpen : styles.exerciseRow}
+                        onClick={() =>
+                          setExpandedWorkout(workoutOpen ? null : workoutKey)
+                        }
+                      >
+                        <div>
+                          <div style={styles.exerciseName}>{exercise}</div>
+                          <div style={styles.exerciseMeta}>
+                            {exerciseLogs.length} sets •{" "}
+                            {exerciseLogs[0]?.entry_type ?? "—"}
+                          </div>
+                        </div>
+
+                        <span style={styles.expandIcon}>
+                          {workoutOpen ? "▲" : "▼"}
+                        </span>
+                      </button>
+
+                      {workoutOpen && (
+                        <div style={styles.setsPanel}>
+                          {exerciseLogs
+                            .slice()
+                            .sort(
+                              (a, b) =>
+                                (a.set_number ?? 0) - (b.set_number ?? 0)
+                            )
+                            .map((log) => (
+                              <div key={log.id} style={styles.setDetailRow}>
+                                <div style={styles.setDetailGrid}>
+                                  <span>Set: {log.set_number ?? "—"}</span>
+                                  <span>Type: {log.entry_type ?? "—"}</span>
+                                  <span>Weight: {log.weight ?? "—"}</span>
+                                  <span>Reps: {log.reps ?? "—"}</span>
+                                  <span>
+                                    Time:{" "}
+                                    {log.duration_minutes
+                                      ? `${log.duration_minutes} min`
+                                      : "—"}
+                                  </span>
+                                  <span>Notes: {log.notes || "—"}</span>
+                                </div>
+
+                                {showDelete && (
+                                  <button
+                                    style={styles.deleteButton}
+                                    onClick={() => deleteLog(log.id)}
+                                  >
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 function MetricCard({
   title,
   value,
@@ -675,84 +807,7 @@ function MetricCard({
   );
 }
 
-function WorkoutTable({
-  logs,
-  deleteLog,
-  showDelete = false,
-}: {
-  logs: WorkoutLog[];
-  deleteLog: (id: string) => void;
-  showDelete?: boolean;
-}) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  if (logs.length === 0) {
-    return <div style={styles.emptyCard}>No saved workouts yet.</div>;
-  }
-
-  return (
-    <div style={styles.savedList}>
-      {logs.map((log) => {
-        const expanded = expandedId === log.id;
-        const value =
-          log.entry_type === "time"
-            ? log.duration_minutes
-              ? `${log.duration_minutes}m`
-              : "—"
-            : log.weight
-              ? `Wt ${log.weight}`
-              : "—";
-
-        return (
-          <div key={log.id} style={styles.savedItem}>
-            <button
-              type="button"
-              style={expanded ? styles.savedRowExpanded : styles.savedRow}
-              onClick={() => setExpandedId(expanded ? null : log.id)}
-            >
-              <span style={styles.savedDate}>{prettyDate(log.workout_date)}</span>
-              <span style={styles.savedExercise}>{log.exercise}</span>
-              <span style={styles.savedMini}>Set {log.set_number ?? "—"}</span>
-              <span style={styles.savedMini}>{log.entry_type ?? "—"}</span>
-              <span style={styles.savedMini}>{value}</span>
-              <span style={styles.expandIcon}>{expanded ? "▲" : "▼"}</span>
-            </button>
-
-            {expanded && (
-              <div style={styles.expandedBox}>
-                <div style={styles.expandedTop}>
-                  <strong style={styles.expandedTitle}>{log.exercise}</strong>
-
-                  {showDelete && (
-                    <button
-                      style={styles.deleteButton}
-                      onClick={() => deleteLog(log.id)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-
-                <div style={styles.expandedGrid}>
-                  <span>Date: {prettyDate(log.workout_date)}</span>
-                  <span>Set: {log.set_number ?? "—"}</span>
-                  <span>Type: {log.entry_type ?? "—"}</span>
-                  <span>Weight: {log.weight ?? "—"}</span>
-                  <span>Reps: {log.reps ?? "—"}</span>
-                  <span>
-                    Time: {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
-                  </span>
-                  <span>Notes: {log.notes || "—"}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
+f
 const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
