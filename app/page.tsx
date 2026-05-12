@@ -1,7 +1,16 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 type InputType = "strength" | "time";
 
@@ -173,7 +182,21 @@ function scrollToSection(id: string) {
   });
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 760);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  return isMobile;
+}
+
 export default function Home() {
+  const isMobile = useIsMobile();
   const localToday = getTodayDate();
 
   const [selectedDate, setSelectedDate] = useState(localToday);
@@ -198,6 +221,11 @@ export default function Home() {
   }, [todaysWorkout]);
 
   async function loadLogs() {
+    if (!supabase) {
+      alert("Supabase environment variables are missing.");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("workout_logs")
       .select("*")
@@ -277,6 +305,11 @@ export default function Home() {
   }
 
   async function saveWorkout(item: WorkoutItem) {
+    if (!supabase) {
+      alert("Supabase environment variables are missing.");
+      return;
+    }
+
     const sets = getSets(item.exercise);
 
     const rows = sets.map((set, index) => ({
@@ -314,6 +347,11 @@ export default function Home() {
   }
 
   async function deleteLog(id: string) {
+    if (!supabase) {
+      alert("Supabase environment variables are missing.");
+      return;
+    }
+
     const confirmed = window.confirm("Delete this workout set?");
     if (!confirmed) return;
 
@@ -330,45 +368,49 @@ export default function Home() {
 
   return (
     <main style={styles.page}>
-      <aside style={styles.sidebar}>
-        <div style={styles.logoWrap}>
-          <div style={styles.logo}>ND</div>
-          <p style={styles.logoSub}>FIGHTING IRISH</p>
-        </div>
-
-        {[
-          { label: "WORKOUT", icon: "🏋️", target: "workout-section" },
-          { label: "SUMMARY", icon: "📊", target: "progress-section" },
-          { label: "CALENDAR", icon: "📅", target: "calendar-section" },
-          { label: "HISTORY", icon: "🕘", target: "history-section" },
-          { label: "PROGRESS", icon: "📈", target: "history-section" },
-        ].map((item, index) => (
-          <button
-            key={item.label}
-            style={index === 0 ? styles.navButtonActive : styles.navButton}
-            onClick={() => scrollToSection(item.target)}
-          >
-            <span style={styles.navIcon}>{item.icon}</span>
-            <span>{item.label}</span>
-          </button>
-        ))}
-
-        <div style={styles.sideCard}>
-          <p style={styles.sideCardTop}>TODAY</p>
-          <h3 style={styles.sideCardTitle}>{selectedDay}</h3>
-          <p style={styles.sideCardText}>{summary.total} items scheduled</p>
-        </div>
-      </aside>
-
-      <section style={styles.content}>
-        <header id="calendar-section" style={styles.hero}>
-          <div>
-            <p style={styles.kicker}>PATRICK&apos;S</p>
-            <h1 style={styles.title}>NOTRE DAME</h1>
-            <h2 style={styles.subtitle}>WORKOUT COMMAND CENTER</h2>
+      {!isMobile && (
+        <aside style={styles.sidebar}>
+          <div style={styles.logoWrap}>
+            <div style={styles.logo}>ND</div>
+            <p style={styles.logoSub}>FIGHTING IRISH</p>
           </div>
 
-          <div style={styles.heroRight}>
+          {[
+            { label: "WORKOUT", icon: "🏋️", target: "workout-section" },
+            { label: "SUMMARY", icon: "📊", target: "progress-section" },
+            { label: "CALENDAR", icon: "📅", target: "calendar-section" },
+            { label: "HISTORY", icon: "🕘", target: "history-section" },
+            { label: "PROGRESS", icon: "📈", target: "history-section" },
+          ].map((item, index) => (
+            <button
+              key={item.label}
+              style={index === 0 ? styles.navButtonActive : styles.navButton}
+              onClick={() => scrollToSection(item.target)}
+            >
+              <span style={styles.navIcon}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+
+          <div style={styles.sideCard}>
+            <p style={styles.sideCardTop}>TODAY</p>
+            <h3 style={styles.sideCardTitle}>{selectedDay}</h3>
+            <p style={styles.sideCardText}>{summary.total} items scheduled</p>
+          </div>
+        </aside>
+      )}
+
+      <section style={isMobile ? styles.contentMobile : styles.content}>
+        <header id="calendar-section" style={isMobile ? styles.heroMobile : styles.hero}>
+          <div>
+            <p style={styles.kicker}>PATRICK&apos;S</p>
+            <h1 style={isMobile ? styles.titleMobile : styles.title}>NOTRE DAME</h1>
+            <h2 style={isMobile ? styles.subtitleMobile : styles.subtitle}>
+              WORKOUT COMMAND CENTER
+            </h2>
+          </div>
+
+          <div style={isMobile ? styles.heroRightMobile : styles.heroRight}>
             <div style={styles.dateCard}>
               <span style={styles.dateLabel}>SELECT DATE</span>
               <input
@@ -388,7 +430,7 @@ export default function Home() {
           </div>
         </header>
 
-        <nav style={styles.dayBar}>
+        <nav style={isMobile ? styles.dayBarMobile : styles.dayBar}>
           {dayOrder.map((day) => {
             const active = selectedDay === day;
             const date = dateForDay(day);
@@ -411,15 +453,15 @@ export default function Home() {
           })}
         </nav>
 
-        <section style={styles.metricsGrid}>
+        <section style={isMobile ? styles.metricsGridMobile : styles.metricsGrid}>
           <MetricCard title="TOTAL TODAY" value={summary.total} color={WHITE} />
           <MetricCard title="STRENGTH" value={summary.strength} color={ND_GOLD_LIGHT} />
           <MetricCard title="TIME / RECOVERY" value={summary.time} color={ND_GREEN} />
           <MetricCard title="SAVED TODAY" value={selectedDateLogs.length} color={WHITE} />
         </section>
 
-        <section id="workout-section" style={styles.panel}>
-          <div style={styles.panelHeader}>
+        <section id="workout-section" style={isMobile ? styles.panelMobile : styles.panel}>
+          <div style={isMobile ? styles.panelHeaderMobile : styles.panelHeader}>
             <div>
               <p style={styles.panelEyebrow}>{prettyDate(selectedDate)}</p>
               <h2 style={styles.panelTitle}>{selectedDay.toUpperCase()} WORKOUT</h2>
@@ -433,7 +475,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div style={styles.workoutGrid}>
+          <div style={isMobile ? styles.workoutGridMobile : styles.workoutGrid}>
             {todaysWorkout.map((item) => {
               const isTime = item.inputType === "time";
               const sets = getSets(item.exercise);
@@ -448,7 +490,8 @@ export default function Home() {
                     <div>
                       <h3 style={styles.exerciseTitle}>{item.exercise}</h3>
                       <p style={isTime ? styles.greenText : styles.goldText}>
-                        {item.category.toUpperCase()} • {isTime ? "TIME" : "WEIGHT + REPS"}
+                        {item.category.toUpperCase()} •{" "}
+                        {isTime ? "TIME" : "WEIGHT + REPS"}
                       </p>
                     </div>
                   </div>
@@ -568,8 +611,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="progress-section" style={styles.panel}>
-          <div style={styles.panelHeader}>
+        <section id="progress-section" style={isMobile ? styles.panelMobile : styles.panel}>
+          <div style={isMobile ? styles.panelHeaderMobile : styles.panelHeader}>
             <div>
               <p style={styles.panelEyebrow}>DAILY BREAKDOWN</p>
               <h2 style={styles.panelTitle}>{selectedDay.toUpperCase()} SUMMARY</h2>
@@ -597,7 +640,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="history-section" style={styles.tablesGrid}>
+        <section id="history-section" style={isMobile ? styles.tablesGridMobile : styles.tablesGrid}>
           <div style={styles.tablePanel}>
             <h2 style={styles.tableTitle}>
               SAVED FOR {prettyDate(selectedDate).toUpperCase()}
@@ -659,10 +702,7 @@ function WorkoutTable({
               </div>
 
               {showDelete && (
-                <button
-                  style={styles.deleteButton}
-                  onClick={() => deleteLog(log.id)}
-                >
+                <button style={styles.deleteButton} onClick={() => deleteLog(log.id)}>
                   Delete
                 </button>
               )}
@@ -695,6 +735,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: WHITE,
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+    overflowX: "hidden",
   },
 
   sidebar: {
@@ -707,6 +748,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRight: `1px solid rgba(201,151,0,0.45)`,
     backdropFilter: "blur(16px)",
     boxShadow: "20px 0 60px rgba(0,0,0,0.38)",
+    boxSizing: "border-box",
   },
 
   logoWrap: {
@@ -801,6 +843,13 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 28,
     maxWidth: 1600,
     margin: "0 auto",
+    boxSizing: "border-box",
+  },
+
+  contentMobile: {
+    width: "100%",
+    padding: 12,
+    boxSizing: "border-box",
   },
 
   hero: {
@@ -812,9 +861,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 28,
     marginBottom: 20,
     border: "1px solid rgba(201,151,0,0.45)",
-    background:
-      "linear-gradient(135deg, rgba(12,35,64,0.86), rgba(2,8,20,0.72))",
+    background: "linear-gradient(135deg, rgba(12,35,64,0.86), rgba(2,8,20,0.72))",
     boxShadow: "0 30px 80px rgba(0,0,0,0.42)",
+  },
+
+  heroMobile: {
+    display: "block",
+    padding: 18,
+    borderRadius: 24,
+    marginBottom: 14,
+    border: "1px solid rgba(201,151,0,0.45)",
+    background: "linear-gradient(135deg, rgba(12,35,64,0.86), rgba(2,8,20,0.72))",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.36)",
   },
 
   kicker: {
@@ -834,6 +892,15 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 2,
   },
 
+  titleMobile: {
+    margin: "6px 0",
+    color: WHITE,
+    fontSize: 40,
+    lineHeight: 0.95,
+    fontWeight: 1000,
+    letterSpacing: 1,
+  },
+
   subtitle: {
     margin: 0,
     color: ND_GOLD_LIGHT,
@@ -842,12 +909,29 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: 4,
   },
 
+  subtitleMobile: {
+    margin: 0,
+    color: ND_GOLD_LIGHT,
+    fontSize: 15,
+    fontWeight: 1000,
+    letterSpacing: 3,
+  },
+
   heroRight: {
     display: "flex",
     alignItems: "center",
     gap: 14,
     flexWrap: "wrap",
     justifyContent: "flex-end",
+  },
+
+  heroRightMobile: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+    marginTop: 16,
   },
 
   dateCard: {
@@ -873,6 +957,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     padding: "12px 14px",
     fontWeight: 900,
+    maxWidth: "100%",
   },
 
   todayButton: {
@@ -887,7 +972,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   shamrock: {
-    fontSize: 52,
+    fontSize: 42,
     color: ND_GREEN,
     textShadow: "0 0 28px rgba(0,132,61,0.88)",
   },
@@ -897,6 +982,13 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(7, 1fr)",
     gap: 10,
     marginBottom: 20,
+  },
+
+  dayBarMobile: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+    marginBottom: 14,
   },
 
   dayButton: {
@@ -923,7 +1015,7 @@ const styles: Record<string, React.CSSProperties> = {
   dayName: {
     display: "block",
     fontWeight: 1000,
-    fontSize: 16,
+    fontSize: 15,
   },
 
   dayDate: {
@@ -940,8 +1032,15 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 20,
   },
 
+  metricsGridMobile: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 10,
+    marginBottom: 14,
+  },
+
   metricCard: {
-    padding: 20,
+    padding: 18,
     borderRadius: 22,
     background: "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.68))",
     border: "1px solid rgba(255,255,255,0.12)",
@@ -952,13 +1051,13 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
     color: MUTED,
     fontWeight: 1000,
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 2,
   },
 
   metricValue: {
     margin: "8px 0 0",
-    fontSize: 46,
+    fontSize: 40,
     fontWeight: 1000,
   },
 
@@ -967,9 +1066,17 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 28,
     marginBottom: 22,
     border: "1px solid rgba(201,151,0,0.35)",
-    background:
-      "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
+    background: "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
     boxShadow: "0 30px 80px rgba(0,0,0,0.4)",
+  },
+
+  panelMobile: {
+    padding: 14,
+    borderRadius: 24,
+    marginBottom: 16,
+    border: "1px solid rgba(201,151,0,0.35)",
+    background: "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.34)",
   },
 
   panelHeader: {
@@ -978,6 +1085,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
     alignItems: "center",
     marginBottom: 22,
+    paddingBottom: 14,
+    borderBottom: `2px solid rgba(0,132,61,0.72)`,
+  },
+
+  panelHeaderMobile: {
+    display: "block",
+    marginBottom: 18,
     paddingBottom: 14,
     borderBottom: `2px solid rgba(0,132,61,0.72)`,
   },
@@ -991,9 +1105,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   panelTitle: {
-    margin: "5px 0 0",
+    margin: "5px 0 14px",
     color: WHITE,
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 1000,
     letterSpacing: 1,
   },
@@ -1015,12 +1129,17 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 18,
   },
 
+  workoutGridMobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 14,
+  },
+
   workoutCard: {
-    padding: 20,
+    padding: 18,
     borderRadius: 24,
     border: "1px solid rgba(201,151,0,0.38)",
-    background:
-      "linear-gradient(180deg, rgba(7,21,38,0.98), rgba(2,8,20,0.92))",
+    background: "linear-gradient(180deg, rgba(7,21,38,0.98), rgba(2,8,20,0.92))",
     boxShadow: "0 26px 60px rgba(0,0,0,0.4)",
     overflow: "hidden",
   },
@@ -1043,6 +1162,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${ND_GOLD}`,
     color: ND_GOLD_LIGHT,
     fontSize: 22,
+    flexShrink: 0,
   },
 
   greenIcon: {
@@ -1056,12 +1176,13 @@ const styles: Record<string, React.CSSProperties> = {
     border: `1px solid ${ND_GREEN}`,
     color: ND_GREEN,
     fontSize: 22,
+    flexShrink: 0,
   },
 
   exerciseTitle: {
     margin: 0,
     color: WHITE,
-    fontSize: 21,
+    fontSize: 20,
     fontWeight: 1000,
   },
 
@@ -1228,12 +1349,18 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 22,
   },
 
+  tablesGridMobile: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 14,
+    marginBottom: 16,
+  },
+
   tablePanel: {
-    padding: 20,
+    padding: 18,
     borderRadius: 24,
     border: "1px solid rgba(201,151,0,0.35)",
-    background:
-      "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
+    background: "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
     boxShadow: "0 30px 80px rgba(0,0,0,0.36)",
   },
 
