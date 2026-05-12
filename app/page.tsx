@@ -691,80 +691,64 @@ function WorkoutTable({
   }
 
   return (
-    <div style={styles.tableScroll}>
-      <table style={styles.realTable}>
-        <thead>
-          <tr>
-            <th style={styles.th}>Date</th>
-            <th style={styles.th}>Exercise</th>
-            <th style={styles.th}>Set</th>
-            <th style={styles.th}>Type</th>
-            <th style={styles.th}>Weight</th>
-            <th style={styles.th}>Reps</th>
-            <th style={styles.th}>Time</th>
-            <th style={styles.th}>Notes</th>
-            {showDelete && <th style={styles.th}>Action</th>}
-          </tr>
-        </thead>
+    <div style={styles.savedList}>
+      {logs.map((log) => {
+        const expanded = expandedId === log.id;
+        const value =
+          log.entry_type === "time"
+            ? log.duration_minutes
+              ? `${log.duration_minutes}m`
+              : "—"
+            : log.weight
+              ? `Wt ${log.weight}`
+              : "—";
 
-        <tbody>
-          {logs.map((log) => {
-            const expanded = expandedId === log.id;
+        return (
+          <div key={log.id} style={styles.savedItem}>
+            <button
+              type="button"
+              style={expanded ? styles.savedRowExpanded : styles.savedRow}
+              onClick={() => setExpandedId(expanded ? null : log.id)}
+            >
+              <span style={styles.savedDate}>{prettyDate(log.workout_date)}</span>
+              <span style={styles.savedExercise}>{log.exercise}</span>
+              <span style={styles.savedMini}>Set {log.set_number ?? "—"}</span>
+              <span style={styles.savedMini}>{log.entry_type ?? "—"}</span>
+              <span style={styles.savedMini}>{value}</span>
+              <span style={styles.expandIcon}>{expanded ? "▲" : "▼"}</span>
+            </button>
 
-            return (
-              <tr key={log.id}>
-                <td colSpan={showDelete ? 9 : 8} style={styles.rowWrapperTd}>
-                  <div
-                    style={expanded ? styles.savedRowExpanded : styles.savedRow}
-                    onClick={() => setExpandedId(expanded ? null : log.id)}
-                  >
-                    <div style={styles.savedCellDate}>{prettyDate(log.workout_date)}</div>
-                    <div style={styles.savedCellExercise}>{log.exercise}</div>
-                    <div style={styles.savedCell}>Set {log.set_number ?? "—"}</div>
-                    <div style={styles.savedCell}>{log.entry_type ?? "—"}</div>
-                    <div style={styles.savedCell}>Wt {log.weight ?? "—"}</div>
-                    <div style={styles.savedCell}>Reps {log.reps ?? "—"}</div>
-                    <div style={styles.savedCell}>
-                      {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
-                    </div>
-                    <div style={styles.savedCellNotes}>{log.notes || "—"}</div>
+            {expanded && (
+              <div style={styles.expandedBox}>
+                <div style={styles.expandedTop}>
+                  <strong style={styles.expandedTitle}>{log.exercise}</strong>
 
-                    {showDelete && (
-                      <button
-                        style={styles.deleteButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteLog(log.id);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-
-                  {expanded && (
-                    <div style={styles.expandedBox}>
-                      <div style={styles.expandedTitle}>{log.exercise}</div>
-
-                      <div style={styles.expandedGrid}>
-                        <span>Date: {prettyDate(log.workout_date)}</span>
-                        <span>Set: {log.set_number ?? "—"}</span>
-                        <span>Type: {log.entry_type ?? "—"}</span>
-                        <span>Weight: {log.weight ?? "—"}</span>
-                        <span>Reps: {log.reps ?? "—"}</span>
-                        <span>
-                          Time: {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
-                        </span>
-                        <span>Notes: {log.notes || "—"}</span>
-                      </div>
-                    </div>
+                  {showDelete && (
+                    <button
+                      style={styles.deleteButton}
+                      onClick={() => deleteLog(log.id)}
+                    >
+                      Delete
+                    </button>
                   )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                </div>
+
+                <div style={styles.expandedGrid}>
+                  <span>Date: {prettyDate(log.workout_date)}</span>
+                  <span>Set: {log.set_number ?? "—"}</span>
+                  <span>Type: {log.entry_type ?? "—"}</span>
+                  <span>Weight: {log.weight ?? "—"}</span>
+                  <span>Reps: {log.reps ?? "—"}</span>
+                  <span>
+                    Time: {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
+                  </span>
+                  <span>Notes: {log.notes || "—"}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1406,6 +1390,7 @@ const styles: Record<string, CSSProperties> = {
     border: "1px solid rgba(201,151,0,0.35)",
     background: "linear-gradient(180deg, rgba(12,35,64,0.88), rgba(2,8,20,0.72))",
     boxShadow: "0 30px 80px rgba(0,0,0,0.36)",
+    overflow: "hidden",
   },
 
   tableTitle: {
@@ -1415,151 +1400,105 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 1000,
   },
 
-  tableScroll: {
+  savedList: {
+    display: "grid",
+    gap: 10,
     width: "100%",
-    overflowX: "auto",
-    borderRadius: 16,
   },
 
-  realTable: {
+  savedItem: {
     width: "100%",
-    minWidth: 980,
-    borderCollapse: "separate",
-    borderSpacing: "0 10px",
-  },
-
-  th: {
-    textAlign: "left",
-    color: ND_GOLD_LIGHT,
-    fontSize: 12,
-    fontWeight: 1000,
-    padding: "8px 12px",
-    whiteSpace: "nowrap",
-  },
-
-  rowWrapperTd: {
-    padding: 0,
   },
 
   savedRow: {
+    width: "100%",
     display: "grid",
-    gridTemplateColumns: "120px minmax(240px, 1.4fr) 80px 100px 90px 90px 90px minmax(180px, 1fr) 120px",
+    gridTemplateColumns: "86px minmax(0, 1fr) 48px 62px 58px 18px",
     alignItems: "center",
-    gap: 10,
-    padding: "14px 14px",
-    borderRadius: 18,
+    gap: 7,
+    padding: "13px 9px",
+    borderRadius: 16,
     border: "1px solid rgba(201,151,0,0.28)",
     background: "rgba(2,8,20,0.62)",
     cursor: "pointer",
+    textAlign: "left",
   },
 
   savedRowExpanded: {
+    width: "100%",
     display: "grid",
-    gridTemplateColumns: "120px minmax(240px, 1.4fr) 80px 100px 90px 90px 90px minmax(180px, 1fr) 120px",
+    gridTemplateColumns: "86px minmax(0, 1fr) 48px 62px 58px 18px",
     alignItems: "center",
-    gap: 10,
-    padding: "14px 14px",
-    borderRadius: 18,
+    gap: 7,
+    padding: "13px 9px",
+    borderRadius: 16,
     border: "1px solid rgba(242,201,76,0.72)",
-    background: "rgba(201,151,0,0.10)",
+    background: "rgba(201,151,0,0.12)",
     cursor: "pointer",
+    textAlign: "left",
   },
 
-  savedCellDate: {
+  savedDate: {
     color: ND_GOLD_LIGHT,
     fontWeight: 1000,
+    fontSize: 11,
     whiteSpace: "nowrap",
-    fontSize: 13,
   },
 
-  savedCellExercise: {
+  savedExercise: {
     color: WHITE,
     fontWeight: 1000,
+    fontSize: 12,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
 
-  savedCell: {
+  savedMini: {
     color: MUTED,
     fontWeight: 900,
-    whiteSpace: "nowrap",
-    fontSize: 13,
-  },
-
-  savedCellNotes: {
-    color: MUTED,
-    fontWeight: 900,
+    fontSize: 10,
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    fontSize: 13,
+  },
+
+  expandIcon: {
+    color: ND_GOLD_LIGHT,
+    fontWeight: 1000,
+    fontSize: 10,
+    textAlign: "right",
   },
 
   expandedBox: {
     margin: "8px 0 4px",
-    padding: 16,
-    borderRadius: 18,
+    padding: 14,
+    borderRadius: 16,
     background: "rgba(255,255,255,0.06)",
     border: "1px solid rgba(201,151,0,0.35)",
     color: WHITE,
   },
 
+  expandedTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
   expandedTitle: {
     color: ND_GOLD_LIGHT,
     fontWeight: 1000,
-    fontSize: 18,
-    marginBottom: 12,
+    fontSize: 16,
   },
 
   expandedGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-    gap: 10,
+    gridTemplateColumns: "repeat(auto-fit, minmax(125px, 1fr))",
+    gap: 9,
     color: MUTED,
     fontWeight: 900,
-  },
-
-  mobileHistoryList: {
-    display: "grid",
-    gap: 12,
-  },
-
-  historyCard: {
-    border: "1px solid rgba(201,151,0,0.28)",
-    borderRadius: 16,
-    padding: 14,
-    background: "rgba(2,8,20,0.42)",
-  },
-
-  historyTopRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-
-  historyDate: {
-    margin: 0,
-    color: ND_GOLD_LIGHT,
-    fontWeight: 1000,
-    fontSize: 12,
-  },
-
-  historyExercise: {
-    margin: "5px 0 0",
-    color: WHITE,
-    fontSize: 15,
-    fontWeight: 1000,
-  },
-
-  historyDetails: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 8,
-    marginTop: 12,
-    color: MUTED,
-    fontWeight: 800,
     fontSize: 12,
   },
 
