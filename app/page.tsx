@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -317,12 +316,9 @@ export default function Home() {
       exercise: item.exercise,
       entry_type: item.inputType,
       set_number: index + 1,
-      weight:
-        item.inputType === "strength" && set.weight ? Number(set.weight) : null,
-      reps:
-        item.inputType === "strength" && set.reps ? Number(set.reps) : null,
-      duration_minutes:
-        item.inputType === "time" && set.duration ? Number(set.duration) : null,
+      weight: item.inputType === "strength" && set.weight ? Number(set.weight) : null,
+      reps: item.inputType === "strength" && set.reps ? Number(set.reps) : null,
+      duration_minutes: item.inputType === "time" && set.duration ? Number(set.duration) : null,
       notes: set.notes || null,
     }));
 
@@ -650,7 +646,7 @@ export default function Home() {
 
           <div style={styles.tablePanel}>
             <h2 style={styles.tableTitle}>ALL SAVED WORKOUTS</h2>
-            <WorkoutTable logs={logs.slice(0, 20)} deleteLog={deleteLog} showDelete />
+            <WorkoutTable logs={logs.slice(0, 50)} deleteLog={deleteLog} showDelete />
           </div>
         </section>
 
@@ -688,44 +684,92 @@ function WorkoutTable({
   deleteLog: (id: string) => void;
   showDelete?: boolean;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  if (logs.length === 0) {
+    return <div style={styles.emptyCard}>No saved workouts yet.</div>;
+  }
+
   return (
-    <div style={styles.mobileHistoryList}>
-      {logs.length === 0 ? (
-        <div style={styles.emptyCard}>No saved workouts yet.</div>
-      ) : (
-        logs.map((log) => (
-          <div key={log.id} style={styles.historyCard}>
-            <div style={styles.historyTopRow}>
-              <div>
-                <p style={styles.historyDate}>{prettyDate(log.workout_date)}</p>
-                <h3 style={styles.historyExercise}>{log.exercise}</h3>
-              </div>
+    <div style={styles.tableScroll}>
+      <table style={styles.realTable}>
+        <thead>
+          <tr>
+            <th style={styles.th}>Date</th>
+            <th style={styles.th}>Exercise</th>
+            <th style={styles.th}>Set</th>
+            <th style={styles.th}>Type</th>
+            <th style={styles.th}>Weight</th>
+            <th style={styles.th}>Reps</th>
+            <th style={styles.th}>Time</th>
+            <th style={styles.th}>Notes</th>
+            {showDelete && <th style={styles.th}>Action</th>}
+          </tr>
+        </thead>
 
-              {showDelete && (
-                <button style={styles.deleteButton} onClick={() => deleteLog(log.id)}>
-                  Delete
-                </button>
-              )}
-            </div>
+        <tbody>
+          {logs.map((log) => {
+            const expanded = expandedId === log.id;
 
-            <div style={styles.historyDetails}>
-              <span>Set: {log.set_number ?? "—"}</span>
-              <span>Type: {log.entry_type ?? "—"}</span>
-              <span>Weight: {log.weight ?? "—"}</span>
-              <span>Reps: {log.reps ?? "—"}</span>
-              <span>
-                Time: {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
-              </span>
-              {log.notes && <span>Notes: {log.notes}</span>}
-            </div>
-          </div>
-        ))
-      )}
+            return (
+              <tr key={log.id}>
+                <td colSpan={showDelete ? 9 : 8} style={styles.rowWrapperTd}>
+                  <div
+                    style={expanded ? styles.savedRowExpanded : styles.savedRow}
+                    onClick={() => setExpandedId(expanded ? null : log.id)}
+                  >
+                    <div style={styles.savedCellDate}>{prettyDate(log.workout_date)}</div>
+                    <div style={styles.savedCellExercise}>{log.exercise}</div>
+                    <div style={styles.savedCell}>Set {log.set_number ?? "—"}</div>
+                    <div style={styles.savedCell}>{log.entry_type ?? "—"}</div>
+                    <div style={styles.savedCell}>Wt {log.weight ?? "—"}</div>
+                    <div style={styles.savedCell}>Reps {log.reps ?? "—"}</div>
+                    <div style={styles.savedCell}>
+                      {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
+                    </div>
+                    <div style={styles.savedCellNotes}>{log.notes || "—"}</div>
+
+                    {showDelete && (
+                      <button
+                        style={styles.deleteButton}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteLog(log.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+
+                  {expanded && (
+                    <div style={styles.expandedBox}>
+                      <div style={styles.expandedTitle}>{log.exercise}</div>
+
+                      <div style={styles.expandedGrid}>
+                        <span>Date: {prettyDate(log.workout_date)}</span>
+                        <span>Set: {log.set_number ?? "—"}</span>
+                        <span>Type: {log.entry_type ?? "—"}</span>
+                        <span>Weight: {log.weight ?? "—"}</span>
+                        <span>Reps: {log.reps ?? "—"}</span>
+                        <span>
+                          Time: {log.duration_minutes ? `${log.duration_minutes} min` : "—"}
+                        </span>
+                        <span>Notes: {log.notes || "—"}</span>
+                      </div>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     display: "flex",
@@ -1369,6 +1413,111 @@ const styles: Record<string, React.CSSProperties> = {
     color: WHITE,
     fontSize: 20,
     fontWeight: 1000,
+  },
+
+  tableScroll: {
+    width: "100%",
+    overflowX: "auto",
+    borderRadius: 16,
+  },
+
+  realTable: {
+    width: "100%",
+    minWidth: 980,
+    borderCollapse: "separate",
+    borderSpacing: "0 10px",
+  },
+
+  th: {
+    textAlign: "left",
+    color: ND_GOLD_LIGHT,
+    fontSize: 12,
+    fontWeight: 1000,
+    padding: "8px 12px",
+    whiteSpace: "nowrap",
+  },
+
+  rowWrapperTd: {
+    padding: 0,
+  },
+
+  savedRow: {
+    display: "grid",
+    gridTemplateColumns: "120px minmax(240px, 1.4fr) 80px 100px 90px 90px 90px minmax(180px, 1fr) 120px",
+    alignItems: "center",
+    gap: 10,
+    padding: "14px 14px",
+    borderRadius: 18,
+    border: "1px solid rgba(201,151,0,0.28)",
+    background: "rgba(2,8,20,0.62)",
+    cursor: "pointer",
+  },
+
+  savedRowExpanded: {
+    display: "grid",
+    gridTemplateColumns: "120px minmax(240px, 1.4fr) 80px 100px 90px 90px 90px minmax(180px, 1fr) 120px",
+    alignItems: "center",
+    gap: 10,
+    padding: "14px 14px",
+    borderRadius: 18,
+    border: "1px solid rgba(242,201,76,0.72)",
+    background: "rgba(201,151,0,0.10)",
+    cursor: "pointer",
+  },
+
+  savedCellDate: {
+    color: ND_GOLD_LIGHT,
+    fontWeight: 1000,
+    whiteSpace: "nowrap",
+    fontSize: 13,
+  },
+
+  savedCellExercise: {
+    color: WHITE,
+    fontWeight: 1000,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  savedCell: {
+    color: MUTED,
+    fontWeight: 900,
+    whiteSpace: "nowrap",
+    fontSize: 13,
+  },
+
+  savedCellNotes: {
+    color: MUTED,
+    fontWeight: 900,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    fontSize: 13,
+  },
+
+  expandedBox: {
+    margin: "8px 0 4px",
+    padding: 16,
+    borderRadius: 18,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(201,151,0,0.35)",
+    color: WHITE,
+  },
+
+  expandedTitle: {
+    color: ND_GOLD_LIGHT,
+    fontWeight: 1000,
+    fontSize: 18,
+    marginBottom: 12,
+  },
+
+  expandedGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+    gap: 10,
+    color: MUTED,
+    fontWeight: 900,
   },
 
   mobileHistoryList: {
